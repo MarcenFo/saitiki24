@@ -1,0 +1,992 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        
+document.getElementById("profileToggle").addEventListener("click", () => {
+  document.getElementById("profileMenu").style.display =
+    document.getElementById("profileMenu").style.display === "block" ? "none" : "block";
+});
+
+</script><!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Честный киловатт</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .sidebar {
+            width: 250px;
+            height: 100vh;
+            background: #f8f9fa;
+            position: fixed;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .sidebar h1 {
+            margin: 0 0 20px;
+            font-size: 24px;
+        }
+        .sidebar button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 30px;
+}
+.brand svg {
+  width: 56px;
+  height: 56px;
+}
+
+.sidebar button .icon {
+    margin-right: 8px;
+    display: inline-block;
+    width: 20px;
+    text-align: center;
+}
+
+.sidebar button:hover {
+    background-color: #e0e0e0;
+}
+.sidebar button.active {
+    background-color: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+        .main-content {
+            margin-left: 270px;
+            padding: 20px;
+        }
+        .main-content h2 {
+            margin: 0 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .filter-arrow {
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #000;
+            transition: transform 0.3s;
+        }
+        .filter-arrow.open {
+            transform: rotate(180deg);
+        }
+        .filter-panel {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        .filter-panel.active {
+            display: block;
+        }
+        .filter-panel label {
+            display: block;
+            margin: 5px 0;
+        }
+        .filter-panel select {
+            width: 100%;
+            padding: 5px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .apartments-table, .bookmarks-table, .settings-section {
+            display: none;
+        }
+        .apartments-table.active, .bookmarks-table.active, .settings-section.active {
+            display: block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .suspicious-factor-100 {
+            background-color: #ffcccc;
+        }
+        .suspicious-factor-63 {
+            background-color: #fff3cd;
+        }
+        .settings-section {
+            padding: 20px;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab-buttons button {
+            padding: 10px 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .tab-buttons button.active {
+            background: #f0f0f0;
+            border-bottom: 2px solid #007bff;
+        }
+        .user-list div {
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        .user-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #ccc;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .user-dot.selected {
+            background: #28a745;
+        }
+        .privileges, .user-info {
+            margin-top: 20px;
+        }
+        .privileges h3, .user-info h3 {
+            margin: 0 0 10px;
+            font-size: 16px;
+        }
+        .privileges label {
+            display: block;
+            margin: 5px 0;
+        }
+        .privileges input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        .privileges .highlighted {
+            background-color: #e0e0e0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .user-info p {
+            margin: 5px 0;
+        }
+        .overview-section {
+            display: none;
+        }
+        .overview-section.active {
+            display: block;
+        }
+        .search-bar {
+            margin-bottom: 20px;
+        }
+        .search-bar input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+    
+.bookmark-dot {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23cccccc" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 4c-1.1 0-2 .9-2 2v16l8-3.2 8 3.2V6c0-1.1-.9-2-2-2H6z"/></svg>');
+  background-repeat: no-repeat;
+  background-size: contain;
+  cursor: pointer;
+}
+
+.bookmark-dot.bookmarked {
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23ffeb3b" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 4c-1.1 0-2 .9-2 2v16l8-3.2 8 3.2V6c0-1.1-.9-2-2-2H6z"/></svg>');
+}
+
+
+
+.settings-section {
+  font-family: sans-serif;
+}
+.settings-section .tab-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tab-buttons button {
+  padding: 10px 20px;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  background: #f0f0f0;
+  font-weight: bold;
+}
+
+.tab-buttons button.active {
+  background-color: #28a745;
+  color: white;
+}
+
+.settings-content {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.user-list,
+.privileges,
+.user-info {
+  background: #f5f6f7;
+  padding: 20px;
+  border-radius: 20px;
+}
+
+.user-list {
+  flex: 1 1 300px;
+}
+
+.privileges {
+  flex: 1 1 250px;
+}
+
+.user-info {
+  flex: 1 1 100%;
+}
+
+.user-list div {
+  margin: 10px 0;
+  font-weight: 500;
+}
+
+.user-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background: #aaa;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.user-dot.selected {
+  background: #28a745;
+}
+
+.privileges label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+}
+
+.privileges .priv-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background: #aaa;
+  border-radius: 50%;
+}
+
+.privileges .priv-dot.active {
+  background: #28a745;
+}
+
+.privileges input {
+  display: none;
+}
+
+
+
+.profile-wrapper {
+  position: fixed;
+  top: 20px;
+  right: 30px;
+  z-index: 1000;
+  font-family: sans-serif;
+}
+
+.profile-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  padding: 6px 12px;
+  gap: 8px;
+}
+
+.profile-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 40px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.profile-menu button {
+  display: block;
+  padding: 10px 20px;
+  width: 100%;
+  background: white;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.profile-menu button:hover {
+  background: #e0e0e0;
+}
+
+.profile-menu button.active {
+  background: #28a745;
+  color: white;
+}
+
+
+.overview-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.overview-left {
+  flex: 1 1 45%;
+}
+
+.overview-right {
+  flex: 1 1 45%;
+}
+
+.stats-box {
+  background: #f3f4f6;
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.overview-right h2, .overview-left h2 {
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+
+.settings-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+}
+
+.user-list, .privileges, .user-info {
+  background-color: #f5f6f7;
+  padding: 20px;
+  border-radius: 20px;
+}
+
+.user-list {
+  flex: 1 1 300px;
+}
+
+.privileges {
+  flex: 1 1 300px;
+}
+
+.user-info {
+  flex: 1 1 100%;
+  margin-top: -20px;
+}
+
+.user-list div {
+  margin: 10px 0;
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.user-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #888;
+  margin-right: 10px;
+}
+
+.user-dot.selected {
+  background: #28a745;
+}
+
+.privileges label {
+  display: flex;
+  align-items: center;
+  margin: 6px 0;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.privileges .priv-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  margin-right: 10px;
+  background: #888;
+  display: inline-block;
+}
+
+.privileges .priv-dot.active {
+  background: #28a745;
+}
+
+.privileges input {
+  display: none;
+}
+
+.user-info p {
+  margin: 6px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.user-info span {
+  font-weight: 500;
+}
+
+
+.privileges input[type="radio"] {
+  display: none;
+}
+
+.privileges label {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.privileges input[type="radio"]:checked + .priv-dot {
+  background-color: #28a745;
+}
+
+</style>
+</head>
+<body>
+    <div class="sidebar">
+        
+<div class="brand">
+  <svg xmlns="http://www.w3.org/2000/svg" height="28" viewBox="0 0 24 24" fill="url(#grad)">
+    <defs>
+      <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#4caf50"/>
+        <stop offset="100%" stop-color="#087f23"/>
+      </linearGradient>
+    </defs>
+    <path d="M7 2v10h3v10l7-12h-4l4-8z"/>
+  </svg>
+  <span>Честный киловатт</span>
+</div>
+
+        <button id="apartmentsBtn"><span class="icon">
+<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 9.5L12 3l9 6.5V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
+</svg>
+</span>Квартиры</button>
+        <button id="bookmarksBtn"><span class="icon">
+<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+</svg>
+</span>Закладки</button>
+        <button id="settingsBtn"><span class="icon">
+<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09c0 .66.39 1.26 1 1.51h.09c.67-.3 1.45-.17 1.82.33l.06.06a2 2 0 1 1 2.83 2.83l-.06.06c-.5.5-.66 1.23-.33 1.82v.09c.3.67.17 1.45-.33 1.82z"/>
+</svg>
+</span>Настройки</button>
+    </div>
+    
+<div class="profile-wrapper">
+  <div class="profile-toggle" id="profileToggle">
+    <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" fill="black" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+    <span class="profile-name">Admin</span>
+  </div>
+  <div class="profile-menu" id="profileMenu">
+    <button>Профиль</button>
+    <button>Выход</button>
+  </div>
+</div>
+
+<div class="main-content">
+        <h2>Квартиры <span class="filter-arrow" id="filterArrow"></span></h2>
+        <div class="filter-panel" id="filterPanel">
+            <label for="buildingType">Тип здания:</label>
+            <select id="buildingType" onchange="applyFilters()">
+                <option value="">Все</option>
+                <option value="Квартира">Квартира</option>
+                <option value="Частный дом">Частный дом</option>
+            </select>
+            <label for="suspicionFactor">Фактор подозрительности:</label>
+            <select id="suspicionFactor" onchange="applyFilters()">
+                <option value="">Все</option>
+                <option value="100%">100%</option>
+                <option value="63%">63%</option>
+                <option value="50%">50%</option>
+                <option value="20%">20%</option>
+                <option value="10%">10%</option>
+            </select>
+        </div>
+        <div class="apartments-table">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Поиск по адресу...">
+            </div>
+            <table id="apartmentsTable">
+                <tr>
+                    <th>Закладка</th>
+                    <th>Адрес</th>
+                    <th>Тип здания</th>
+                    <th>Потребление</th>
+                    <th>Фактор подозрительности</th>
+                    <th>Доп. данные</th>
+                </tr>
+                <tr>
+                    <td><span class="bookmark-dot" data-address="с. Верхнениколаевское, ул. Блатная 6, кв 66"></span></td>
+                    <td>с. Верхнениколаевское, ул. Блатная 6, кв 66</td>
+                    <td>Квартира</td>
+                    <td>5000 kWh</td>
+                    <td class="suspicious-factor-100">100%</td>
+                    <td><a href="#">Скачать</a></td>
+                </tr>
+                <tr>
+                    <td><span class="bookmark-dot" data-address="с. Верхнениколаевское, ул. Морская 13, кв 54"></span></td>
+                    <td>с. Верхнениколаевское, ул. Морская 13, кв 54</td>
+                    <td>Квартира</td>
+                    <td>228 kWh</td>
+                    <td class="suspicious-factor-63">63%</td>
+                    <td><a href="#">Скачать</a></td>
+                </tr>
+                <tr>
+                    <td><span class="bookmark-dot" data-address="с. Верхнениколаевское, ул. Родная 0, kv 59"></span></td>
+                    <td>с. Верхнениколаевское, ул. Родная 0, kv 59</td>
+                    <td>Квартира</td>
+                    <td>228 kWh</td>
+                    <td>20%</td>
+                    <td><a href="#">Скачать</a></td>
+                </tr>
+                <tr>
+                    <td><span class="bookmark-dot" data-address="с. Верхнениколаевское, ул. Левая 12"></span></td>
+                    <td>с. Верхнениколаевское, ул. Левая 12</td>
+                    <td>Частный дом</td>
+                    <td>228 kWh</td>
+                    <td>10%</td>
+                    <td><a href="#">Скачать</a></td>
+                </tr>
+                <tr>
+                    <td><span class="bookmark-dot" data-address="с. Верхнениколаевское, ул. Крутая 100, kv 15"></span></td>
+                    <td>с. Верхнениколаевское, ул. Крутая 100, kv 15</td>
+                    <td>Квартира</td>
+                    <td>228 kWh</td>
+                    <td>50%</td>
+                    <td><a href="#">Скачать</a></td>
+                </tr>
+            </table>
+        </div>
+        <table class="bookmarks-table">
+            <tr>
+                <th>Адрес</th>
+                <th>Тип здания</th>
+                <th>Потребление</th>
+                <th>Фактор подозрительности</th>
+                <th>Доп. данные</th>
+            </tr>
+        </table>
+        <div class="settings-section">
+            <div class="tab-buttons">
+                <button id="usersBtn" class="active">Пользователь</button>
+                <button id="overviewBtn">Обзор</button>
+            </div><div class="settings-content">
+            <div id="usersSection">
+                <div class="user-list">
+                    <div><span class="user-dot" data-user="krechetov"></span> Кречетов Артем Станиславович</div>
+                    <div><span class="user-dot" data-user="larionov"></span> Ларионов Вадим Владиславович</div>
+                    <div><span class="user-dot" data-user="voronkov"></span> Воронков Степан Николаевич</div>
+                    <div><span class="user-dot" data-user="yurchenko"></span> Юрченко Богдан Александрович</div>
+                </div>
+                
+<h3>Привилегии</h3>
+<div class="privileges">
+  <label><input type="radio" name="privilege" value="view" hidden><span class="priv-dot" id="priv_view"></span> Просмотр данных</label>
+  <label><input type="radio" name="privilege" value="edit" hidden><span class="priv-dot" id="priv_edit"></span> Редактирование</label>
+  <label><input type="radio" name="privilege" value="add" hidden><span class="priv-dot" id="priv_add"></span> Внесение новых данных</label>
+  <label><input type="radio" name="privilege" value="assign" hidden><span class="priv-dot" id="priv_assign"></span> Назначение привилегий</label>
+</div>
+
+                </div>
+            </div>
+            <div id="overviewSection" class="overview-section">
+<div class="overview-layout">
+  <div class="overview-left">
+    <h2>📍 Карта аномалий</h2>
+  </div>
+  <div class="overview-right">
+    <h2>✅ Статистика</h2>
+    <div class="stats-box">
+      <p><strong>Количество клиентов:</strong></p>
+      <p><strong>Обнаружено аномалий:</strong></p>
+      <p><strong>Подтверждено нарушений:</strong></p>
+    </div>
+    <h2>📈 График аномалий</h2>
+  </div>
+</div>
+</div>
+        </div>
+    </div>
+
+    <script>
+        const apartmentsBtn = document.getElementById('apartmentsBtn');
+        const bookmarksBtn = document.getElementById('bookmarksBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const apartmentsTable = document.querySelector('.apartments-table');
+        const bookmarksTable = document.querySelector('.bookmarks-table');
+        const settingsSection = document.querySelector('.settings-section');
+        const filterArrow = document.getElementById('filterArrow');
+        const filterPanel = document.getElementById('filterPanel');
+        let bookmarks = new Set();
+
+        
+apartmentsBtn.addEventListener('click', function() {
+    [apartmentsBtn, bookmarksBtn, settingsBtn].forEach(btn => btn.classList.remove('active'));
+    apartmentsBtn.classList.add('active');
+
+            apartmentsTable.classList.add('active');
+            bookmarksTable.classList.remove('active');
+            settingsSection.classList.remove('active');
+            updateBookmarksTable();
+            applyFilters();
+        });
+
+        
+bookmarksBtn.addEventListener('click', function() {
+    [apartmentsBtn, bookmarksBtn, settingsBtn].forEach(btn => btn.classList.remove('active'));
+    bookmarksBtn.classList.add('active');
+
+            bookmarksTable.classList.add('active');
+            apartmentsTable.classList.remove('active');
+            settingsSection.classList.remove('active');
+            updateBookmarksTable();
+        });
+
+        
+settingsBtn.addEventListener('click', function() {
+    [apartmentsBtn, bookmarksBtn, settingsBtn].forEach(btn => btn.classList.remove('active'));
+    settingsBtn.classList.add('active');
+
+            settingsSection.classList.add('active');
+            apartmentsTable.classList.remove('active');
+            bookmarksTable.classList.remove('active');
+        });
+
+        document.getElementById('usersBtn').addEventListener('click', function() {
+            document.getElementById('usersSection').style.display = 'block';
+            document.getElementById('overviewSection').classList.remove('active');
+            this.classList.add('active');
+            document.getElementById('overviewBtn').classList.remove('active');
+        });
+
+        document.getElementById('overviewBtn').addEventListener('click', function() {
+            document.getElementById('usersSection').style.display = 'none';
+            document.getElementById('overviewSection').classList.add('active');
+            this.classList.add('active');
+            document.getElementById('usersBtn').classList.remove('active');
+        });
+
+        document.querySelectorAll('.user-dot').forEach(dot => {
+            dot.addEventListener('click', function() {
+                const dots = document.querySelectorAll('.user-dot');
+                dots.forEach(d => d.classList.remove('selected'));
+                this.classList.add('selected');
+
+                const user = this.getAttribute('data-user');
+                const position = document.getElementById('position');
+                const alerts = document.getElementById('alerts');
+                const lastSession = document.getElementById('lastSession');
+
+                const checkboxes = document.querySelectorAll('.privileges input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                    checkbox.parentElement.classList.remove('highlighted');
+                });
+
+                if (user === 'krechetov') {
+                    position.textContent = 'Backend';
+                    alerts.textContent = '8';
+                    lastSession.textContent = '24.05.2025';
+                    document.getElementById('viewData').checked = true;
+                    document.getElementById('viewData').parentElement.classList.add('highlighted');
+                } else if (user === 'larionov') {
+                    position.textContent = 'Backend';
+                    alerts.textContent = '5';
+                    lastSession.textContent = '25.05.2025';
+                    document.getElementById('addData').checked = true;
+                    document.getElementById('addData').parentElement.classList.add('highlighted');
+                } else if (user === 'voronkov') {
+                    position.textContent = 'Frontend';
+                    alerts.textContent = '3';
+                    lastSession.textContent = '24.05.2025';
+                    document.getElementById('edit').checked = true;
+                    document.getElementById('edit').parentElement.classList.add('highlighted');
+                } else if (user === 'yurchenko') {
+                    position.textContent = 'Дизайнер';
+                    alerts.textContent = '13';
+                    lastSession.textContent = '24.05.2025';
+                    document.getElementById('assignPrivileges').checked = true;
+                    document.getElementById('assignPrivileges').parentElement.classList.add('highlighted');
+                }
+            });
+        });
+
+        document.getElementById('searchInput').addEventListener('input', function() {
+            applyFilters();
+        });
+
+        document.querySelectorAll('.bookmark-dot').forEach(dot => {
+            dot.addEventListener('click', function() {
+                const address = this.getAttribute('data-address');
+                if (bookmarks.has(address)) {
+                    bookmarks.delete(address);
+                    this.classList.remove('bookmarked');
+                } else {
+                    bookmarks.add(address);
+                    this.classList.add('bookmarked');
+                }
+                updateBookmarksTable();
+            });
+        });
+
+        function updateBookmarksTable() {
+            const bookmarkRows = document.querySelectorAll('.bookmarks-table tr:not(:first-child)');
+            bookmarkRows.forEach(row => row.remove());
+
+            const rows = document.querySelectorAll('#apartmentsTable tr:not(:first-child)');
+            rows.forEach(row => {
+                const address = row.cells[1].textContent;
+                if (bookmarks.has(address)) {
+                    const newRow = row.cloneNode(true);
+                    newRow.deleteCell(0);
+                    document.querySelector('.bookmarks-table').appendChild(newRow);
+                }
+            });
+        }
+
+        filterArrow.addEventListener('click', function() {
+            const isOpen = filterPanel.classList.toggle('active');
+            filterArrow.classList.toggle('open', isOpen);
+        });
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const buildingType = document.getElementById('buildingType').value;
+            const suspicionFactor = document.getElementById('suspicionFactor').value;
+            const rows = document.querySelectorAll('#apartmentsTable tr:not(:first-child)');
+
+            rows.forEach(row => {
+                const address = row.cells[1].textContent.toLowerCase();
+                const type = row.cells[2].textContent;
+                const factor = row.cells[4].textContent;
+
+                const matchesSearch = address.includes(searchTerm);
+                const matchesType = !buildingType || type === buildingType;
+                const matchesFactor = !suspicionFactor || factor === suspicionFactor;
+
+                if (matchesSearch && matchesType && matchesFactor) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            updateBookmarksTable(); // Ensure bookmarks table reflects filtered results
+        }
+    </script>
+
+<script>
+const userData = {
+  krechetov: {
+    position: "Backend",
+    alerts: 8,
+    session: "24.05.2025",
+    privileges: ["view"]
+  },
+  larionov: {
+    position: "Backend",
+    alerts: 5,
+    session: "25.05.2025",
+    privileges: ["add"]
+  },
+  voronkov: {
+    position: "Frontend",
+    alerts: 3,
+    session: "24.05.2025",
+    privileges: ["edit"]
+  },
+  yurchenko: {
+    position: "Дизайнер",
+    alerts: 13,
+    session: "24.05.2025",
+    privileges: ["assign"]
+  }
+};
+
+document.querySelectorAll('.user-dot').forEach(dot => {
+  dot.addEventListener('click', function () {
+    document.querySelectorAll('.user-dot').forEach(d => d.classList.remove('selected'));
+    this.classList.add('selected');
+
+    const user = this.getAttribute('data-user');
+    const info = userData[user];
+
+    // Очистить и выделить привилегии
+    document.querySelectorAll('.priv-dot').forEach(d => d.classList.remove('active'));
+    if (info.privileges) {
+      info.privileges.forEach(priv => {
+        const dot = document.getElementById('priv_' + priv);
+        if (dot) dot.classList.add('active');
+      });
+    }
+
+    // Вставить информацию
+    document.getElementById('positionText').textContent = info.position || '';
+    document.getElementById('alertsText').textContent = info.alerts || '';
+    document.getElementById('sessionText').textContent = info.session || '';
+  });
+});
+</script>
+
+
+<script>
+const userData = {
+  krechetov: {
+    position: "Backend",
+    alerts: 8,
+    session: "24.05.2025",
+    privilege: "view"
+  },
+  larionov: {
+    position: "Backend",
+    alerts: 5,
+    session: "25.05.2025",
+    privilege: "add"
+  },
+  voronkov: {
+    position: "Frontend",
+    alerts: 3,
+    session: "24.05.2025",
+    privilege: "edit"
+  },
+  yurchenko: {
+    position: "Дизайнер",
+    alerts: 13,
+    session: "24.05.2025",
+    privilege: "assign"
+  }
+};
+
+document.querySelectorAll('.user-dot').forEach(dot => {
+  dot.addEventListener('click', function () {
+    document.querySelectorAll('.user-dot').forEach(d => d.classList.remove('selected'));
+    this.classList.add('selected');
+
+    const user = this.getAttribute('data-user');
+    const info = userData[user];
+
+    // Сброс всех радио и активных кружков
+    document.querySelectorAll('.privileges input[type="radio"]').forEach(input => input.checked = false);
+    document.querySelectorAll('.priv-dot').forEach(dot => dot.classList.remove('active'));
+
+    // Установить radio и выделение
+    const radio = document.querySelector(`input[value="${info.privilege}"]`);
+    if (radio) {
+      radio.checked = true;
+      const dot = document.getElementById('priv_' + info.privilege);
+      if (dot) dot.classList.add('active');
+    }
+
+    // Обновить информацию
+    document.getElementById('positionText').textContent = info.position;
+    document.getElementById('alertsText').textContent = info.alerts;
+    document.getElementById('sessionText').textContent = info.session;
+  });
+});
+</script>
+
+</body>
+</html>
